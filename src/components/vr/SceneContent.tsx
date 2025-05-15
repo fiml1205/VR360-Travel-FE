@@ -1,67 +1,94 @@
-import { useRef, useState } from "react";
-import { useThree, useFrame, useLoader } from "@react-three/fiber";
+import { useRef, useState, useEffect } from "react";
+import { useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import ArrowHotspot from "./ArrowHotspot";
-import type { SceneData } from "./types";
+import type { SceneData, VRSceneProps } from "./types";
 
-interface SceneContentProps {
-    sceneData: SceneData;
-    onChangeScene: (sceneId: string) => void;
-    getImageById: (sceneId: string) => string;
-}
-
-export default function SceneContent({ sceneData, onChangeScene, getImageById }: SceneContentProps) {
-    const texture = useLoader(THREE.TextureLoader, sceneData.image);
+export default function SceneContent({ projectId, sceneId, sceneData, onChangeScene, getImageById }: VRSceneProps) {
     const { camera } = useThree();
-    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-    const controlsRef = useRef<OrbitControlsImpl | null>(null);
-    cameraRef.current = camera as THREE.PerspectiveCamera;
-
+    const controlsRef = useRef<any>(null);
+    const meshRef = useRef<THREE.Mesh>(null);
+    const textureCache = useRef<Record<string, THREE.Texture>>({});
+    const [currentTexture, setCurrentTexture] = useState<THREE.Texture | null>(null);
     const [isAnimating, setIsAnimating] = useState(false);
 
-    const zoomToHotspot = (target: THREE.Vector3, nextSceneId: string, nextImageUrl: string) => {
-        if (!cameraRef.current || !controlsRef.current) return;
-        const camera = cameraRef.current;
+    // Load ảnh hiện tại
+    useEffect(() => {
+        const loader = new THREE.TextureLoader();
+        loader.load(sceneData.image, (texture) => {
+            setCurrentTexture(texture);
+            textureCache.current[`${projectId}_${sceneData.id}`] = texture;
+            if (camera && controlsRef.current) {
+                camera.position.set(0, 0, 4.9);
+                controlsRef.current.target.set(0, 0, 0);
+                controlsRef.current.update();
+            }
+        });
+    }, [projectId, sceneData.id, sceneData.image]);
+
+    // Preload ảnh hotspot
+    useEffect(() => {
+        const loader = new THREE.TextureLoader();
+        sceneData.hotspots.forEach(hotspot => {
+            const key = `${projectId}_${hotspot.targetSceneId}`;
+            if (!textureCache.current[key]) {
+                const url = getImageById(hotspot.targetSceneId);
+                loader.load(url, (texture) => {
+                    textureCache.current[key] = texture;
+                });
+            }
+        });
+    }, [projectId, sceneData.hotspots, getImageById]);
+
+    const zoomToHotspot = (target: THREE.Vector3, nextSceneId: number) => {
+        if (!camera || !controlsRef.current) return;
+
         const controls = controlsRef.current;
+        const startPos = camera.position.clone();
+        const startTarget = controls.target.clone();
+        const endPos = target.clone().normalize().multiplyScalar(2.5);
+        const endTarget = target.clone();
+        const duration = 1500;
+        const startTime = performance.now();
 
-        const start = camera.position.clone();
-        const end = target.clone().normalize().multiplyScalar(2.5);
-        controls.target.copy(target);
-        controls.update();
-
-        let progress = 0;
         const easeInOut = (t: number) =>
             t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 
-        const animate = () => {
-            progress += 0.02;
-            const eased = easeInOut(Math.min(progress, 1));
-            const newPos = start.clone().lerp(end, eased);
+        const animate = (now: number) => {
+            const elapsed = now - startTime;
+            const t = Math.min(elapsed / duration, 1);
+            const eased = easeInOut(t);
+
+            const newPos = startPos.clone().lerp(endPos, eased);
+            const newTarget = startTarget.clone().lerp(endTarget, eased);
+
             camera.position.copy(newPos);
+            controls.target.copy(newTarget);
             controls.update();
 
-            if (progress < 1) {
+            if (t < 1) {
                 requestAnimationFrame(animate);
             } else {
+                const key = `${projectId}_${nextSceneId}`;
+                const texture = textureCache.current[key];
+                if (texture && meshRef.current) {
+                    const material = meshRef.current.material as THREE.MeshBasicMaterial;
+                    material.map = texture;
+                    material.needsUpdate = true;
+                    setCurrentTexture(texture);
+                }
+                onChangeScene(nextSceneId);
+                camera.position.set(0, 0, 4.9);
+                controls.target.set(0, 0, 0);
+                controls.update();
                 setIsAnimating(false);
-                const loader = new THREE.TextureLoader();
-                loader.load(nextImageUrl, () => {
-                    camera.position.set(0, 0, 0.1);
-                    controls.target.set(0, 0, 0);
-                    controls.update();
-                    onChangeScene(nextSceneId);
-                    setIsHotspotVisible(true);
-                });
             }
         };
 
         setIsAnimating(true);
-        animate();
+        requestAnimationFrame(animate);
     };
-
-    const [isHotspotVisible, setIsHotspotVisible] = useState(true);
 
     return (
         <>
@@ -71,23 +98,23 @@ export default function SceneContent({ sceneData, onChangeScene, getImageById }:
                 enableZoom
                 enablePan={false}
                 minDistance={1}
-                maxDistance={4.9}
+                maxDistance={5}
             />
-            <mesh>
-                <sphereGeometry args={[5, 60, 40]} />
-                <meshBasicMaterial map={texture} side={THREE.BackSide} />
-            </mesh>
-            {isHotspotVisible && sceneData.hotspots.map((hotspot, index) => (
+            {currentTexture && (
+                <mesh ref={meshRef}>
+                    <sphereGeometry args={[5, 60, 40]} />
+                    <meshBasicMaterial map={currentTexture} side={THREE.BackSide} />
+                </mesh>
+            )}
+            {sceneData.hotspots.map((hotspot, idx) => (
                 <ArrowHotspot
-                    key={index}
+                    key={idx}
                     position={hotspot.position}
                     label={hotspot.label}
                     onClick={() => {
                         if (isAnimating) return;
-                        setIsHotspotVisible(false);
                         const pos = new THREE.Vector3(...hotspot.position);
-                        const imageUrl = getImageById(hotspot.targetSceneId);
-                        zoomToHotspot(pos, hotspot.targetSceneId, imageUrl);
+                        zoomToHotspot(pos, hotspot.targetSceneId);
                     }}
                 />
             ))}

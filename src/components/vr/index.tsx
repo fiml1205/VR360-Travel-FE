@@ -5,19 +5,18 @@ import { Suspense } from "react";
 import SceneContent from "./SceneContent";
 import type { VRSceneProps } from "./types";
 
-export default function VRScene({ sceneId, sceneData, onChangeScene, getImageById }: VRSceneProps) {
+export default function VRScene({ projectId, sceneId, sceneData, onChangeScene, getImageById }: VRSceneProps) {
   return (
-    <div className="w-full h-screen relative">
-      <Canvas camera={{ fov: 75, near: 0.1, far: 1000, position: [0, 0, 0.1] }}>
-        <Suspense fallback={null}>
-          <SceneContent
-            key={sceneId}
-            sceneData={sceneData}
-            onChangeScene={onChangeScene}
-            getImageById={getImageById}
-          />
-        </Suspense>
-      </Canvas>
-    </div>
+    <Canvas camera={{ fov: 75, near: 0.1, far: 1000, position: [0, 0, 0.1] }} style={{ width: "100%", height: "100%" }}>
+      <Suspense fallback={null}>
+        <SceneContent
+          projectId={projectId}
+          sceneId={sceneId}
+          sceneData={sceneData}
+          onChangeScene={onChangeScene}
+          getImageById={getImageById}
+        />
+      </Suspense>
+    </Canvas>
   );
 }

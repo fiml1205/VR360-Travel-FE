@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { CornerRightDown, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { sceneMap } from "@/components/data/sceneMap";
+import type { ProjectData, SceneData } from "@/components/vr/types";
 
 const VRScene = dynamic(() => import("@/components/vr"), { ssr: false });
 
@@ -15,31 +15,85 @@ const projects = [
 ];
 
 export default function ProjectDetail() {
-    const [currentSceneId, setCurrentSceneId] = useState("home");
+    // const [currentSceneId, setCurrentSceneId] = useState("home");
     const params = useParams();
     const slug = params?.slug as string;
 
-    const project = projects.find((p) => p.slug === slug);
+    // const project = projects.find((p) => p.slug === slug);
 
-    if (!project) {
-        return <div className="text-white text-center">❌ Không tìm thấy dự án</div>;
-    }
+    // if (!project) {
+    //     return <div className="text-white text-center">❌ Không tìm thấy dự án</div>;
+    // }
+
+    const projectId = 1;
+    //   const projectId = params?.slug;
+
+    const [project, setProject] = useState<ProjectData | null>(null);
+    const [currentSceneId, setCurrentSceneId] = useState<number>();
+
+    useEffect(() => {
+        if (!projectId || typeof projectId !== "number") return;
+
+        async function fetchProject() {
+            // TODO: fetch từ API thực tế
+            // const res = await fetch(`/api/projects/${projectId}`);
+            // const data: ProjectData = await res.json();
+
+            // Giả lập dữ liệu trả về
+            const data: ProjectData = {
+                id: projectId,
+                name: "Hành trình khám phá Hà Nội",
+                alias: "abc",
+                detail: "...",
+                images360: [
+                    {
+                        id: 1,
+                        image: "/images/test1.jpg",
+                        hotspots: [
+                            { position: [4, 0, 0], targetSceneId: 2, label: "Đi Hồ Gươm" }
+                        ],
+                    },
+                    {
+                        id: 2,
+                        image: "/images/test2.jpg",
+                        hotspots: [
+                            { position: [-4, 0, 0], targetSceneId: 1, label: "Về Nhà" }
+                        ],
+                    }
+                ]
+            };
+
+            setProject(data);
+            setCurrentSceneId(data.images360[0].id);
+        }
+
+        fetchProject();
+    }, [projectId]);
+
+    if (!project) return <div>Đang tải dự án...</div>;
+
+    const currentScene = project.images360.find(scene => scene.id === currentSceneId);
+    if (!currentScene) return <div>Không tìm thấy ảnh 360</div>;
 
     return (
         <>
             <div className="w-3/4 mx-auto pt-4">
                 <h1 className=" text-default-color text-2xl pb-4">Tour du lịch Trung Quốc 5 ngày 4 đêm Thượng Hải - Tô Châu - Phúc Đán</h1>
                 <div>
-                    <main className="h-screen max-h-800 flex items-center justify-center bg-gray-900">
-                        {/* <VRScene
-                            sceneData={sceneMap[currentSceneId]}
-                            onChangeScene={(newId) => setCurrentSceneId(newId)}
-                        /> */}
+                    <main className="h-80vh flex items-center justify-center bg-gray-900">
                         <VRScene
-                            sceneId={currentSceneId}
-                            sceneData={sceneMap[currentSceneId]}
+                            projectId={project.id}
+                            sceneId={currentScene.id}
+                            sceneData={{
+                                id: currentScene.id,
+                                image: currentScene.image,
+                                hotspots: currentScene.hotspots,
+                            }}
                             onChangeScene={setCurrentSceneId}
-                            getImageById={(id) => sceneMap[id]?.image ?? ""}
+                            getImageById={(sceneId) => {
+                                const scene = project.images360.find(s => s.id === sceneId);
+                                return scene ? scene.image : "";
+                            }}
                         />
                     </main>
                 </div>

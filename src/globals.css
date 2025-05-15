@@ -9,7 +9,8 @@
   --font-mono: var(--font-geist-mono);
   --color-default-color: #FF3366;
   --color-hover-default-color: rgb(178, 35, 71);
-  --height-800: 800px
+  --height-800: 800px;
+  --height-80vh: 80vh
 }
 
 :root {
