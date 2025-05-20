@@ -2,8 +2,8 @@ import { useRef, useState, useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
-import ArrowHotspot from "./ArrowHotspot";
-import type { SceneData, VRSceneProps } from "./types";
+import Hotspot from "./Hotspot";
+import type { SceneData, VRSceneProps } from "../types";
 
 export default function SceneContent({ projectId, sceneId, sceneData, onChangeScene, getImageById }: VRSceneProps) {
     const { camera } = useThree();
@@ -107,10 +107,10 @@ export default function SceneContent({ projectId, sceneId, sceneData, onChangeSc
                 </mesh>
             )}
             {sceneData.hotspots.map((hotspot, idx) => (
-                <ArrowHotspot
+                <Hotspot
                     key={idx}
                     position={hotspot.position}
-                    label={hotspot.label}
+                    previewUrl={getImageById(hotspot.targetSceneId)}
                     onClick={() => {
                         if (isAnimating) return;
                         const pos = new THREE.Vector3(...hotspot.position);

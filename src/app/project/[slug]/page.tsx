@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { CornerRightDown, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { ProjectData, SceneData } from "@/components/vr/types";
+import type { ProjectData, SceneData } from "@/components/types";
 
 const VRScene = dynamic(() => import("@/components/vr"), { ssr: false });
 
@@ -48,7 +48,7 @@ export default function ProjectDetail() {
                 images360: [
                     {
                         id: 1,
-                        image: "/images/test1.jpg",
+                        image: "/images/test7.jpg",
                         hotspots: [
                             { position: [4, 0, 0], targetSceneId: 2, label: "Đi Hồ Gươm" }
                         ],
